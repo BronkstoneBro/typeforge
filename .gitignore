@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables (secrets)
+.env
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Alembic (не коммитим сгенерированные файлы pycache внутри)
+alembic/__pycache__/
+alembic/versions/__pycache__/
+
+# Screenshots (генерируются во время работы)
+screenshots/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes / local data
+pgdata/
+
+# Logs
+*.log
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
