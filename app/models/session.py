@@ -28,8 +28,6 @@ class BotSession(Base):
     duration_sec: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     browser_start_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
-    element_find_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
-    screenshot_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     peak_memory_mb: Mapped[float | None] = mapped_column(Float, nullable=True)
     peak_cpu_percent: Mapped[float | None] = mapped_column(Float, nullable=True)
 
