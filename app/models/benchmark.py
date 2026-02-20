@@ -29,6 +29,10 @@ class BenchmarkRun(Base):
     playwright_avg_browser_start: Mapped[float | None] = mapped_column(Float, nullable=True)
     selenium_avg_memory_mb: Mapped[float | None] = mapped_column(Float, nullable=True)
     playwright_avg_memory_mb: Mapped[float | None] = mapped_column(Float, nullable=True)
+    selenium_avg_cpu_percent: Mapped[float | None] = mapped_column(Float, nullable=True)
+    playwright_avg_cpu_percent: Mapped[float | None] = mapped_column(Float, nullable=True)
+    selenium_avg_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
+    playwright_avg_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     winner: Mapped[WinnerType | None] = mapped_column(
         Enum(WinnerType, name="winner_type"), nullable=True
