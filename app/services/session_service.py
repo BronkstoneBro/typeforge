@@ -13,8 +13,6 @@ from app.automation.base_driver import TypingResult
 
 
 class SessionService:
-    """Service for managing bot typing sessions"""
-
     def __init__(self, db: AsyncSession):
         self.db = db
 
@@ -25,28 +23,14 @@ class SessionService:
         runs: int = 1,
         benchmark_id: uuid.UUID | None = None
     ) -> List[BotSession]:
-        """
-        Run typing session(s) with the specified driver and profile.
-
-        Args:
-            driver: Type of driver to use (selenium or playwright)
-            profile: Typing profile (beginner, intermediate, expert, robot)
-            runs: Number of times to run the session
-            benchmark_id: Optional benchmark ID to associate sessions with
-
-        Returns:
-            List of completed BotSession records
-        """
         sessions = []
 
-        # Create driver instance
         if driver == DriverType.SELENIUM:
             typing_driver = SeleniumTypingDriver()
         else:
             typing_driver = PlaywrightTypingDriver()
 
         for _ in range(runs):
-            # Create session record
             session = BotSession(
                 driver=driver,
                 profile=profile,
@@ -58,14 +42,11 @@ class SessionService:
             await self.db.refresh(session)
 
             try:
-                # Update status to running
                 session.status = SessionStatus.RUNNING
                 await self.db.commit()
 
-                # Run the driver
                 result: TypingResult = await typing_driver.run(profile)
 
-                # Update session with results
                 session.wpm = result.wpm
                 session.accuracy = result.accuracy
                 session.duration_sec = result.duration_sec
@@ -92,7 +73,6 @@ class SessionService:
         return sessions
 
     async def get_session(self, session_id: uuid.UUID) -> BotSession | None:
-        """Get a single session by ID"""
         result = await self.db.execute(
             select(BotSession).where(BotSession.id == session_id)
         )
@@ -103,19 +83,11 @@ class SessionService:
         skip: int = 0,
         limit: int = 50
     ) -> tuple[List[BotSession], int]:
-        """
-        List sessions with pagination.
-
-        Returns:
-            Tuple of (sessions list, total count)
-        """
-        # Get total count
         count_result = await self.db.execute(
             select(func.count(BotSession.id))
         )
         total = count_result.scalar()
 
-        # Get sessions
         result = await self.db.execute(
             select(BotSession)
             .order_by(BotSession.created_at.desc())
