@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from app.config import settings
 from app.database import Base, engine
+from app.api.routes import sessions, benchmark, screenshots
 
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
@@ -30,3 +31,7 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.include_router(sessions.router)
+app.include_router(benchmark.router)
+app.include_router(screenshots.router)
