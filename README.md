@@ -38,7 +38,9 @@ docker-compose up --build
 
 2. Access the API:
 - **Swagger UI**: http://localhost:8000/docs
-- **Selenium VNC** (watch browser): http://localhost:7900 (password: secret)
+- **Selenium VNC** (watch browser): http://localhost:7900*
+
+*VNC password is `secret` (default from selenium/standalone-chrome image)
 
 ## API Examples
 
