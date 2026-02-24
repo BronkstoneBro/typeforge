@@ -2,11 +2,10 @@ import asyncio
 import time
 import uuid
 from pathlib import Path
-
+import logging
 from playwright.async_api import async_playwright, Page, Browser
 
 from app.automation.base_driver import TypingDriver, TypingResult
-from app.automation.profiles import keystroke_delay, word_pause
 from app.automation.metrics_collector import MetricsCollector
 from app.config import settings
 from app.models.enums import TypingProfileType
@@ -20,14 +19,20 @@ class PlaywrightTypingDriver(TypingDriver):
     async def _extract_text_from_words(self, page: Page) -> str:
         await page.wait_for_selector("#words", state="visible")
 
-        letters = await page.query_selector_all("#words letter")
+        words = await page.query_selector_all("#words .word")
 
         text_parts = []
-        for letter in letters:
-            letter_text = await letter.inner_text()
-            text_parts.append(letter_text)
+        for word_elem in words:
+            letters = await word_elem.query_selector_all("letter")
+            word_text = "".join([await letter.inner_text() for letter in letters])
+            text_parts.append(word_text)
 
-        return "".join(text_parts)
+        text = " ".join(text_parts)
+
+
+        logging.info(f"[Playwright] Extracted text ({len(text)} chars): {text[:100]}...")
+
+        return text
 
     async def _get_results(self, page: Page) -> tuple[float, float]:
         await page.wait_for_selector("#result", state="visible", timeout=30000)
@@ -72,22 +77,30 @@ class PlaywrightTypingDriver(TypingDriver):
 
                 await page.wait_for_selector("#words", state="visible")
 
+                try:
+                    await page.click("#cookiesModal .acceptAll", timeout=2000)
+                    await asyncio.sleep(0.5)
+                except Exception:
+                    pass
+
                 screenshot_before = str(self.screenshots_dir / f"{session_id}_before.png")
                 await page.screenshot(path=screenshot_before)
 
                 text = await self._extract_text_from_words(page)
 
-                await page.click("#words")
+                await page.evaluate("document.body.click();")
+                await asyncio.sleep(0.3)
 
-                for char in text:
-                    await page.keyboard.press(char)
+                if profile == TypingProfileType.BEGINNER:
+                    base_delay_ms = 200
+                elif profile == TypingProfileType.INTERMEDIATE:
+                    base_delay_ms = 100
+                elif profile == TypingProfileType.EXPERT:
+                    base_delay_ms = 50
+                else:
+                    base_delay_ms = 0
 
-                    await keystroke_delay(profile)
-
-                    if char == " ":
-                        pause = word_pause(profile)
-                        if pause > 0:
-                            await asyncio.sleep(pause)
+                await page.keyboard.type(text, delay=base_delay_ms)
 
                 wpm, accuracy = await self._get_results(page)
 
