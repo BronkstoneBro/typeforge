@@ -2,7 +2,7 @@ import asyncio
 import time
 import uuid
 from pathlib import Path
-import logging
+
 from playwright.async_api import async_playwright, Page, Browser
 
 from app.automation.base_driver import TypingDriver, TypingResult
@@ -28,10 +28,6 @@ class PlaywrightTypingDriver(TypingDriver):
             text_parts.append(word_text)
 
         text = " ".join(text_parts)
-
-
-        logging.info(f"[Playwright] Extracted text ({len(text)} chars): {text[:100]}...")
-
         return text
 
     async def _get_results(self, page: Page) -> tuple[float, float]:
