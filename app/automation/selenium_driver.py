@@ -48,10 +48,6 @@ class SeleniumTypingDriver(TypingDriver):
             text_parts.append(word_text)
 
         text = " ".join(text_parts)
-
-        import logging
-        logging.info(f"[Selenium] Extracted text ({len(text)} chars): {text[:100]}...")
-
         return text
 
     def _get_results(self, driver: WebDriver) -> tuple[float, float]:
