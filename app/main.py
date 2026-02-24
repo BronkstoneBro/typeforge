@@ -1,8 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
-
 from app.config import settings
 from app.database import Base, engine
 from app.api.routes import sessions, benchmark, screenshots
