@@ -1,5 +1,4 @@
 import asyncio
-import random
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -12,7 +11,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.remote.webdriver import WebDriver
 
 from app.automation.base_driver import TypingDriver, TypingResult
-from app.automation.profiles import keystroke_delay, word_pause
 from app.automation.metrics_collector import MetricsCollector
 from app.config import settings
 from app.models.enums import TypingProfileType
@@ -40,8 +38,20 @@ class SeleniumTypingDriver(TypingDriver):
 
     def _extract_text_from_words(self, driver: WebDriver) -> str:
         words_container = driver.find_element(By.ID, "words")
-        letters = words_container.find_elements(By.TAG_NAME, "letter")
-        text = "".join(letter.text for letter in letters)
+
+        words = words_container.find_elements(By.CSS_SELECTOR, ".word")
+
+        text_parts = []
+        for word_elem in words:
+            letters = word_elem.find_elements(By.TAG_NAME, "letter")
+            word_text = "".join(letter.text for letter in letters)
+            text_parts.append(word_text)
+
+        text = " ".join(text_parts)
+
+        import logging
+        logging.info(f"[Selenium] Extracted text ({len(text)} chars): {text[:100]}...")
+
         return text
 
     def _get_results(self, driver: WebDriver) -> tuple[float, float]:
@@ -49,12 +59,21 @@ class SeleniumTypingDriver(TypingDriver):
             EC.presence_of_element_located((By.ID, "result"))
         )
 
+        time.sleep(1)
+
         wpm_element = driver.find_element(By.CSS_SELECTOR, "#result .wpm .bottom")
-        wpm = float(wpm_element.text)
+        wpm_text = wpm_element.text.strip()
 
         acc_element = driver.find_element(By.CSS_SELECTOR, "#result .acc .bottom")
-        accuracy_text = acc_element.text.rstrip("%")
-        accuracy = float(accuracy_text)
+        acc_text = acc_element.text.strip().rstrip("%")
+
+        if not wpm_text:
+            raise ValueError(f"WPM element is empty. Result HTML: {driver.find_element(By.ID, 'result').get_attribute('innerHTML')[:500]}")
+        if not acc_text:
+            raise ValueError(f"Accuracy element is empty. Result HTML: {driver.find_element(By.ID, 'result').get_attribute('innerHTML')[:500]}")
+
+        wpm = float(wpm_text)
+        accuracy = float(acc_text)
 
         return wpm, accuracy
 
@@ -73,42 +92,46 @@ class SeleniumTypingDriver(TypingDriver):
                 EC.presence_of_element_located((By.ID, "words"))
             )
 
+            try:
+                cookie_modal = WebDriverWait(driver, 2).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "#cookiesModal .acceptAll"))
+                )
+                cookie_modal.click()
+                time.sleep(0.5)
+            except Exception:
+                pass
+
             screenshot_before = str(self.screenshots_dir / f"{session_id}_before.png")
             driver.save_screenshot(screenshot_before)
 
             text = self._extract_text_from_words(driver)
 
-            words_element = driver.find_element(By.ID, "words")
-            words_element.click()
+            driver.execute_script("document.body.click();")
+            time.sleep(0.5)
 
-            for char in text:
-                driver.switch_to.active_element.send_keys(char)
+            if profile == TypingProfileType.BEGINNER:
+                base_delay = 0.200
+            elif profile == TypingProfileType.INTERMEDIATE:
+                base_delay = 0.100
+            elif profile == TypingProfileType.EXPERT:
+                base_delay = 0.050
+            else:
+                base_delay = 0.0
 
-                if profile == TypingProfileType.BEGINNER:
-                    base, jitter = 0.200, 0.080
-                elif profile == TypingProfileType.INTERMEDIATE:
-                    base, jitter = 0.100, 0.030
-                elif profile == TypingProfileType.EXPERT:
-                    base, jitter = 0.050, 0.015
-                else:
-                    base, jitter = 0.0, 0.0
+            from selenium.webdriver.common.action_chains import ActionChains
+            actions = ActionChains(driver)
 
-                if base > 0:
-                    delay = max(0, base + random.uniform(-jitter, jitter))
-                    time.sleep(delay)
+            for i, char in enumerate(text):
+                actions.send_keys(char)
 
-                if char == " ":
-                    if profile == TypingProfileType.BEGINNER:
-                        pause = random.uniform(0.3, 1.0)
-                    elif profile == TypingProfileType.INTERMEDIATE:
-                        pause = random.uniform(0.05, 0.15)
-                    elif profile == TypingProfileType.EXPERT:
-                        pause = random.uniform(0.0, 0.02)
-                    else:
-                        pause = 0.0
+                if base_delay > 0:
+                    actions.pause(base_delay)
 
-                    if pause > 0:
-                        time.sleep(pause)
+                if i % 10 == 9:
+                    actions.perform()
+                    actions = ActionChains(driver)
+
+            actions.perform()
 
             wpm, accuracy = self._get_results(driver)
 
