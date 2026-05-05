@@ -6,6 +6,16 @@ from pathlib import Path
 from playwright.async_api import async_playwright, Page, Browser
 
 from app.automation.base_driver import TypingDriver, TypingResult
+from app.automation.constants import (
+    COOKIE_MODAL_TIMEOUT,
+    DEFAULT_VIEWPORT_HEIGHT,
+    DEFAULT_VIEWPORT_WIDTH,
+    PLAYWRIGHT_POST_CLICK_DELAY,
+    POST_COOKIE_DISMISS_DELAY,
+    RESULT_WAIT_TIMEOUT,
+    SCREENSHOT_AFTER_SUFFIX,
+    SCREENSHOT_BEFORE_SUFFIX,
+)
 from app.automation.metrics_collector import MetricsCollector
 from app.config import settings
 from app.models.enums import TypingProfileType
@@ -31,7 +41,7 @@ class PlaywrightTypingDriver(TypingDriver):
         return text
 
     async def _get_results(self, page: Page) -> tuple[float, float]:
-        await page.wait_for_selector("#result", state="visible", timeout=30000)
+        await page.wait_for_selector("#result", state="visible", timeout=RESULT_WAIT_TIMEOUT * 1000)
 
         wpm_text = await page.locator("#result .wpm .bottom").inner_text()
         wpm = float(wpm_text)
@@ -66,7 +76,7 @@ class PlaywrightTypingDriver(TypingDriver):
                 browser_start_ms = (time.time() - browser_start) * 1000
 
                 page = await browser.new_page(
-                    viewport={"width": 1920, "height": 1080}
+                    viewport={"width": DEFAULT_VIEWPORT_WIDTH, "height": DEFAULT_VIEWPORT_HEIGHT}
                 )
 
                 await page.goto("https://monkeytype.com", wait_until="networkidle")
@@ -74,18 +84,18 @@ class PlaywrightTypingDriver(TypingDriver):
                 await page.wait_for_selector("#words", state="visible")
 
                 try:
-                    await page.click("#cookiesModal .acceptAll", timeout=2000)
-                    await asyncio.sleep(0.5)
+                    await page.click("#cookiesModal .acceptAll", timeout=COOKIE_MODAL_TIMEOUT * 1000)
+                    await asyncio.sleep(POST_COOKIE_DISMISS_DELAY)
                 except Exception:
                     pass
 
-                screenshot_before = str(self.screenshots_dir / f"{session_id}_before.png")
+                screenshot_before = str(self.screenshots_dir / f"{session_id}{SCREENSHOT_BEFORE_SUFFIX}")
                 await page.screenshot(path=screenshot_before)
 
                 text = await self._extract_text_from_words(page)
 
                 await page.evaluate("document.body.click();")
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(PLAYWRIGHT_POST_CLICK_DELAY)
 
                 if profile == TypingProfileType.BEGINNER:
                     base_delay_ms = 200
@@ -100,7 +110,7 @@ class PlaywrightTypingDriver(TypingDriver):
 
                 wpm, accuracy = await self._get_results(page)
 
-                screenshot_after = str(self.screenshots_dir / f"{session_id}_after.png")
+                screenshot_after = str(self.screenshots_dir / f"{session_id}{SCREENSHOT_AFTER_SUFFIX}")
                 await page.screenshot(path=screenshot_after)
 
                 duration_sec = time.time() - start_time
