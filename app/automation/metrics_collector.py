@@ -2,6 +2,8 @@ import asyncio
 import psutil
 from typing import Tuple
 
+from app.automation.constants import BYTES_TO_MB, METRICS_POLL_INTERVAL
+
 
 class MetricsCollector:
     def __init__(self):
@@ -13,16 +15,16 @@ class MetricsCollector:
         self._task: asyncio.Task | None = None
 
     async def _collect_loop(self) -> None:
-        self._start_memory = self._process.memory_info().rss / 1024 / 1024
+        self._start_memory = self._process.memory_info().rss / BYTES_TO_MB
 
         while self._running:
-            mem_mb = self._process.memory_info().rss / 1024 / 1024
+            mem_mb = self._process.memory_info().rss / BYTES_TO_MB
             cpu_percent = self._process.cpu_percent(interval=None)
 
             self._peak_memory = max(self._peak_memory, mem_mb)
             self._peak_cpu = max(self._peak_cpu, cpu_percent)
 
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(METRICS_POLL_INTERVAL)
 
     def start(self) -> None:
         if self._running:

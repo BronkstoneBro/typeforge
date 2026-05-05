@@ -11,6 +11,19 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.remote.webdriver import WebDriver
 
 from app.automation.base_driver import TypingDriver, TypingResult
+from app.automation.constants import (
+    ACTION_CHAINS_BATCH_SIZE,
+    COOKIE_MODAL_TIMEOUT,
+    DEFAULT_VIEWPORT_HEIGHT,
+    DEFAULT_VIEWPORT_WIDTH,
+    PAGE_LOAD_TIMEOUT,
+    POST_CLICK_DELAY,
+    POST_COOKIE_DISMISS_DELAY,
+    RESULT_EXTRACTION_DELAY,
+    RESULT_WAIT_TIMEOUT,
+    SCREENSHOT_AFTER_SUFFIX,
+    SCREENSHOT_BEFORE_SUFFIX,
+)
 from app.automation.metrics_collector import MetricsCollector
 from app.config import settings
 from app.models.enums import TypingProfileType
@@ -33,7 +46,7 @@ class SeleniumTypingDriver(TypingDriver):
             options=options
         )
 
-        driver.set_window_size(1920, 1080)
+        driver.set_window_size(DEFAULT_VIEWPORT_WIDTH, DEFAULT_VIEWPORT_HEIGHT)
         return driver
 
     def _extract_text_from_words(self, driver: WebDriver) -> str:
@@ -51,11 +64,11 @@ class SeleniumTypingDriver(TypingDriver):
         return text
 
     def _get_results(self, driver: WebDriver) -> tuple[float, float]:
-        WebDriverWait(driver, 30).until(
+        WebDriverWait(driver, RESULT_WAIT_TIMEOUT).until(
             EC.presence_of_element_located((By.ID, "result"))
         )
 
-        time.sleep(1)
+        time.sleep(RESULT_EXTRACTION_DELAY)
 
         wpm_element = driver.find_element(By.CSS_SELECTOR, "#result .wpm .bottom")
         wpm_text = wpm_element.text.strip()
@@ -84,26 +97,26 @@ class SeleniumTypingDriver(TypingDriver):
 
             driver.get("https://monkeytype.com")
 
-            WebDriverWait(driver, 10).until(
+            WebDriverWait(driver, PAGE_LOAD_TIMEOUT).until(
                 EC.presence_of_element_located((By.ID, "words"))
             )
 
             try:
-                cookie_modal = WebDriverWait(driver, 2).until(
+                cookie_modal = WebDriverWait(driver, COOKIE_MODAL_TIMEOUT).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "#cookiesModal .acceptAll"))
                 )
                 cookie_modal.click()
-                time.sleep(0.5)
+                time.sleep(POST_COOKIE_DISMISS_DELAY)
             except Exception:
                 pass
 
-            screenshot_before = str(self.screenshots_dir / f"{session_id}_before.png")
+            screenshot_before = str(self.screenshots_dir / f"{session_id}{SCREENSHOT_BEFORE_SUFFIX}")
             driver.save_screenshot(screenshot_before)
 
             text = self._extract_text_from_words(driver)
 
             driver.execute_script("document.body.click();")
-            time.sleep(0.5)
+            time.sleep(POST_CLICK_DELAY)
 
             if profile == TypingProfileType.BEGINNER:
                 base_delay = 0.200
@@ -123,7 +136,7 @@ class SeleniumTypingDriver(TypingDriver):
                 if base_delay > 0:
                     actions.pause(base_delay)
 
-                if i % 10 == 9:
+                if i % ACTION_CHAINS_BATCH_SIZE == (ACTION_CHAINS_BATCH_SIZE - 1):
                     actions.perform()
                     actions = ActionChains(driver)
 
@@ -131,7 +144,7 @@ class SeleniumTypingDriver(TypingDriver):
 
             wpm, accuracy = self._get_results(driver)
 
-            screenshot_after = str(self.screenshots_dir / f"{session_id}_after.png")
+            screenshot_after = str(self.screenshots_dir / f"{session_id}{SCREENSHOT_AFTER_SUFFIX}")
             driver.save_screenshot(screenshot_after)
 
             duration_sec = time.time() - start_time
